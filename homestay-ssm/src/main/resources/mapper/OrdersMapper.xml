@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.homestay.mapper.OrdersMapper">
+
+    <select id="findAll" resultType="com.homestay.entity.Orders">
+        SELECT o.*, u.username AS userName
+        FROM order_info o
+        LEFT JOIN t_user u ON o.user_id = u.user_id
+        ORDER BY
+        CASE o.order_status
+        WHEN 0 THEN 1
+        WHEN 1 THEN 2
+        WHEN 2 THEN 3
+        WHEN 4 THEN 5
+        ELSE 6
+        END ASC,
+        STR_TO_DATE(o.start_time,'%Y-%m-%d') ASC
+    </select>
+
+    <insert id="addOrder">
+        INSERT INTO order_info(
+        order_id, room_id, room_name, room_img, start_time, end_time,
+        room_count, people_count, contact_phone, total_price, pay_method,
+        pay_status, order_status, create_time,
+        user_id,
+        user_name
+        )
+        VALUES(
+        #{orderId}, #{roomId}, #{roomName}, #{roomImg}, #{startTime}, #{endTime},
+        #{roomCount}, #{peopleCount}, #{contactPhone}, #{totalPrice}, #{payMethod},
+        #{payStatus}, #{orderStatus}, #{createTime},
+        #{userId},
+        #{userName}
+        )
+    </insert>
+
+    <update id="cancelOrder">
+        UPDATE order_info SET order_status=3 WHERE order_id=#{orderId}
+    </update>
+
+    <select id="getByUserId" resultType="com.homestay.entity.Orders">
+        select * from order_info where user_id = #{userId}
+    </select>
+
+    <!-- 🔥 修复这里 -->
+    <update id="updateById">
+        UPDATE order_info
+        <set>
+            <if test="orderStatus != null">
+                order_status = #{orderStatus}
+            </if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- ===================== 以下全是新增统计SQL，不动原有代码 ===================== -->
+    <!--1.今日下单订单总数-->
+    <select id="countTodayBook" resultType="int">
+        select count(id) from order_info where DATE(create_time)=CURDATE()
+    </select>
+    <!--2.今日实收收入总和，已支付订单-->
+    <select id="sumTodayIncome" resultType="Double">
+        select IFNULL(SUM(total_price),0) from order_info
+        where DATE(create_time)=CURDATE() and pay_status=1
+    </select>
+    <!--3.在住房间：order_status=1 已入住-->
+    <select id="countLivingRoom" resultType="int">
+        select count(DISTINCT room_id) from order_info where order_status=1
+    </select>
+    <!--4.已预订：0待入住-->
+    <select id="countBookRoom" resultType="int">
+        select count(DISTINCT room_id) from order_info where order_status=0
+    </select>
+    <!--5.待打扫：2需打扫-->
+    <select id="countCleanRoom" resultType="int">
+        select count(DISTINCT room_id) from order_info where order_status=2
+    </select>
+    <!--6.房源总数-->
+    <select id="countTotalRoom" resultType="int">
+        select count(room_id) from room
+    </select>
+    <!--7.空闲房间：总房-在住-预订-->
+    <select id="countEmptyRoom" resultType="int">
+        SELECT (SELECT COUNT(room_id) FROM room)
+        - (SELECT COUNT(DISTINCT room_id) FROM order_info WHERE order_status IN (0,1))
+    </select>
+
+    <!-- 👇👇👇 只改了这4个，全部修复 👇👇👇 -->
+
+    <!--近7天日期-->
+    <select id="getSevenDay" resultType="String">
+        SELECT DATE_FORMAT(DATE_SUB(CURDATE(),INTERVAL 6- t DAY),'%m-%d') FROM
+        (SELECT 0 t UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6) tmp
+    </select>
+
+    <!--近7天每日订单数量-->
+    <select id="getSevenOrder" resultType="Integer">
+        SELECT IFNULL(COUNT(o.id),0) cnt
+        FROM (SELECT DATE_SUB(CURDATE(),INTERVAL 6- t DAY) d FROM (SELECT 0 t UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6) tmp) d
+        LEFT JOIN order_info o ON DATE(o.create_time)=d
+        GROUP BY d ORDER BY d
+    </select>
+
+    <!--近7天收入-->
+    <select id="getSevenIncome" resultType="Double">
+        SELECT IFNULL(SUM(o.total_price),0) money
+        FROM (SELECT DATE_SUB(CURDATE(),INTERVAL 6- t DAY) d FROM (SELECT 0 t UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6) tmp) d
+        LEFT JOIN order_info o ON DATE(o.create_time)=d AND o.pay_status=1
+        GROUP BY d ORDER BY d
+    </select>
+
+    <!--近7天房源使用率 %-->
+    <select id="getSevenRate" resultType="Double">
+        SELECT ROUND(IFNULL((SELECT COUNT(DISTINCT room_id) FROM order_info WHERE DATE(create_time)=d AND order_status=1),0)
+        /(SELECT COUNT(room_id) FROM room)*100,1) rate
+        FROM (SELECT DATE_SUB(CURDATE(),INTERVAL 6- t DAY) d FROM (SELECT 0 t UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6) tmp) d
+        ORDER BY d
+    </select>
+
+
+    <!-- ================== 纯追加：系统通知SQL ================== -->
+    <!-- 新订单通知 -->
+    <select id="getNewOrderNotices" resultType="com.homestay.entity.Orders">
+        select * from order_info where order_status = 0 order by create_time desc limit 5
+    </select>
+
+    <!-- 入住通知 -->
+    <select id="getCheckInNotices" resultType="com.homestay.entity.Orders">
+        select * from order_info where order_status = 1 order by create_time desc limit 5
+    </select>
+
+    <!-- 退房待打扫通知 -->
+    <select id="getCheckOutNotices" resultType="com.homestay.entity.Orders">
+        select * from order_info where order_status = 2 order by create_time desc limit 5
+    </select>
+
+    <!-- 待处理事项订单（修复版） -->
+    <select id="getTodoOrders" resultType="com.homestay.entity.Orders">
+        SELECT * FROM order_info
+        <where>
+            <if test="_parameter == 'pending'">
+                order_status = 0 AND pay_status = 1
+            </if>
+            <if test="_parameter == 'checkin'">
+                order_status = 0 AND pay_status = 1
+            </if>
+            <if test="_parameter == 'checkout'">
+                order_status = 1
+            </if>
+            <if test="_parameter == 'review'">
+                order_status = 2
+            </if>
+        </where>
+        ORDER BY create_time DESC
+    </select>
+
+    <!-- ===================== 待处理事项统计（纯追加） ===================== -->
+    <select id="countTodoOrders" resultType="int">
+        SELECT COUNT(id) FROM order_info
+        <where>
+            <if test="_parameter == 'pending'">
+                order_status = 0 AND pay_status = 1
+            </if>
+            <if test="_parameter == 'checkin'">
+                order_status = 0 AND pay_status = 1
+            </if>
+            <if test="_parameter == 'checkout'">
+                order_status = 1
+            </if>
+            <if test="_parameter == 'review'">
+                order_status = 2
+            </if>
+        </where>
+    </select>
+</mapper>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.homestay.mapper.EvaluateMapper">
+
+    <insert id="add" parameterType="com.homestay.entity.Evaluate">
+        INSERT INTO t_evaluate (
+            eva_id, user_id, user_name, score, content,
+            eva_img, eva_time, room_name, order_id
+        )
+        VALUES (
+                   #{evaId}, #{userId}, #{userName}, #{score}, #{content},
+                   #{evaImg}, #{evaTime}, #{roomName}, #{orderId}
+               )
+    </insert>
+
+    <update id="updateReply">
+        UPDATE t_evaluate
+        SET reply = #{reply}
+        WHERE eva_id = #{evaId}
+    </update>
+
+    <select id="getList" parameterType="string" resultType="com.homestay.entity.Evaluate">
+        SELECT
+            eva_id, user_id, user_name, score, content,
+            eva_img, eva_time, room_name, order_id, reply
+        FROM t_evaluate
+        WHERE user_id = #{userId}
+        ORDER BY eva_time DESC
+    </select>
+
+    <select id="getAllList" resultType="com.homestay.entity.Evaluate">
+        SELECT
+            eva_id, user_id, user_name, score, content,
+            eva_img, eva_time, room_name, order_id, reply
+        FROM t_evaluate
+        ORDER BY eva_time DESC
+    </select>
+
+</mapper>

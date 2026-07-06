@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.homestay.mapper.StatisticsMapper">
+
+    <select id="selectAll" resultType="com.homestay.entity.Statistics">
+        select * from statistics
+    </select>
+
+    <insert id="insert">
+        insert into statistics(day, order_count, income, create_time)
+        values(#{day},#{orderCount},#{income},#{createTime})
+    </insert>
+
+</mapper>

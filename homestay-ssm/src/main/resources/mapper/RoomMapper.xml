@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.homestay.mapper.RoomMapper">
+
+    <!-- 字段映射：数据库字段 → 实体类（100%匹配你的SQL） -->
+    <resultMap id="RoomResultMap" type="com.homestay.entity.Room">
+        <id column="room_id" property="roomId"/>
+        <result column="room_name" property="roomName"/>
+        <result column="price" property="price"/>
+        <result column="img" property="img"/>
+        <result column="desc" property="desc"/>
+        <result column="category_id" property="categoryId"/>
+        <result column="room_type" property="roomType"/>
+        <result column="status" property="status"/>
+        <result column="room_status" property="roomStatus"/>
+        <result column="tags" property="tags"/>
+        <result column="code" property="code"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <!-- 查询上架房间 -->
+    <select id="getOnSaleRooms" resultMap="RoomResultMap">
+        SELECT * FROM room WHERE `status`=1 ORDER BY room_id DESC
+    </select>
+
+    <!-- 查询全部房间（和Service/Controller完全匹配） -->
+    <select id="findAll" resultMap="RoomResultMap">
+        SELECT * FROM room ORDER BY room_id ASC
+    </select>
+
+    <!-- 根据ID查询 -->
+    <select id="findById" resultMap="RoomResultMap">
+        SELECT * FROM room WHERE room_id=#{roomId}
+    </select>
+
+    <!-- 新增房间（已修复：加入room_id） -->
+    <insert id="addRoom" parameterType="com.homestay.entity.Room">
+        INSERT INTO room (room_id, room_name, price, img, `desc`, category_id, room_type, status, room_status, tags, code)
+        VALUES (#{roomId}, #{roomName}, #{price}, #{img}, #{desc}, #{categoryId}, #{roomType}, #{status}, #{roomStatus}, #{tags}, #{code})
+    </insert>
+
+    <!-- 修改房间 -->
+    <update id="updateRoom" parameterType="com.homestay.entity.Room">
+        UPDATE room SET
+                        room_name=#{roomName},
+                        price=#{price},
+                        img=#{img},
+                        `desc`=#{desc},
+                        category_id=#{categoryId},
+                        room_type=#{roomType},
+                        `status`=#{status},
+                        room_status=#{roomStatus},
+                        tags=#{tags},
+                        code=#{code}
+        WHERE room_id=#{roomId}
+    </update>
+
+    <!-- 上下架 -->
+    <update id="changeStatus">
+        UPDATE room SET `status`=#{status} WHERE room_id=#{roomId}
+    </update>
+
+    <!-- 房态修改 -->
+    <update id="changeRoomStatus">
+        UPDATE room SET room_status=#{roomStatus} WHERE room_id=#{roomId}
+    </update>
+
+    <!-- 删除 -->
+    <delete id="deleteRoom">
+        DELETE FROM room WHERE room_id = #{roomId}
+    </delete>
+
+    <!-- 获取最小空缺ID，自动回填删除的ID -->
+    <select id="getMinFreeRoomId" resultType="java.lang.Integer">
+        SELECT IFNULL(
+                       (SELECT MIN(t1.room_id+1) FROM room t1
+                        WHERE NOT EXISTS(SELECT 1 FROM room t2 WHERE t2.room_id = t1.room_id+1)),
+                       COALESCE((SELECT MAX(room_id) FROM room),0)+1
+               ) AS newId;
+    </select>
+
+    <!-- ======================== 【稳定版】房态查询 ======================== -->
+    <select id="getEmptyRooms" resultMap="RoomResultMap">
+        SELECT * FROM room WHERE room_status = 'empty'
+    </select>
+
+    <select id="getCheckInRooms" resultMap="RoomResultMap">
+        SELECT * FROM room WHERE room_status = 'occupied'
+    </select>
+
+    <select id="getBookedRooms" resultMap="RoomResultMap">
+        SELECT * FROM room WHERE room_status = 'booked'
+    </select>
+
+    <select id="getCleanRooms" resultMap="RoomResultMap">
+        SELECT * FROM room WHERE room_status = 'clean'
+    </select>
+
+</mapper>

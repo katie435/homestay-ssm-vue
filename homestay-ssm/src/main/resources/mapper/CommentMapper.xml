@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.homestay.mapper.CommentMapper">
+
+    <select id="selectAll" resultType="com.homestay.entity.Comment">
+        select * from comment
+    </select>
+
+    <insert id="insert">
+        insert into comment(user_id, room_id, content, score, create_time)
+        values(#{userId},#{roomId},#{content},#{score},#{createTime})
+    </insert>
+
+</mapper>
